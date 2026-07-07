@@ -108,12 +108,15 @@
     <h2>Batch — <span id="count">0</span> product(s) ready</h2>
     <div id="batch"><p class="empty">No products added yet.</p></div>
     <div class="actions">
+      <button class="btn-navy" id="sendBtn" onclick="sendToStore()">🚀 Create in Shopify (auto-optimized)</button>
       <button class="btn" onclick="copyForClaude()">📋 Copy for Claude</button>
       <button class="btn-ghost" onclick="download('json')">Download JSON</button>
       <button class="btn-ghost" onclick="download('csv')">Download Shopify CSV</button>
       <button class="btn-ghost" onclick="clearBatch()">Clear batch</button>
     </div>
-    <label style="margin-top:16px">Preview (this is what I receive)</label>
+    <p class="hint" style="margin-top:6px">“Create in Shopify” rewrites your copy/SEO with Claude and adds each product as a <b>Draft</b> for you to approve. (Needs the backend set up — see SETUP.md.)</p>
+    <div id="results"></div>
+    <label style="margin-top:16px">Preview (this is what gets sent)</label>
     <pre id="preview">[]</pre>
   </div>
 
@@ -124,6 +127,10 @@
 const COLLECTIONS=["Decals","Hazard/Warning Decals","Waste Decals","Fuel Decals","Truck and Equipment Decals","Health / Infection Prevention Decals","Service Decals","Traffic Signs","No Parking Signs","Parking Lot Private Property Signs","Permissive Parking Signs","Regulatory Signs","Warning Signs","Handicap-Disabled Parking Signs","Pedestrian Signs","Speed Limit Signs","Civic Signs","Yard Signs","FDC Signage","Emergency Roll Up Traffic Signs","Fire & Safety Products","First Responders","Aviation","Rail Road","Construction","Sign Sheeting","DOT Tape","Chevron","Reflective Technology","Hardware/Substrates/Cleaners","Safety","Custom Apparel and Merchandise","Promotional Goods"];
 const MATERIALS=["ORAFOL® 3641 Vinyl - No Laminate","ORAFOL® 3651 Vinyl - No Laminate","ORAFOL® 3651 Vinyl - ORAGUARD® Laminate","ORALITE® 5400 Reflective Vinyl - No Laminate","ORALITE® 5900 High Intensity Prismatic Grade - Type IV - ORAGUARD® 5061 Clear Laminate","ORALITE® 6700 Engineer Grade Prismatic - Type I - ORAGUARD® 5061 Clear Laminate","Reflective Aluminum","High-Intensity Aluminum","Non-Reflective Aluminum"];
 let batch=[];
+
+// ===== Backend (fill these in after you deploy the Cloudflare Worker — see SETUP.md) =====
+const WORKER_URL = "https://safety-decals-intake.n-tykoski.workers.dev/";
+const FORM_SECRET = "";  // only if you set SHARED_SECRET on the Worker
 
 // build collection checkboxes
 const cwrap=document.getElementById('collections');
@@ -246,6 +253,29 @@ function download(kind){
     blob=new Blob([lines.join('\n')],{type:'text/csv'});name='new-products-shopify-import.csv';
   }
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+}
+async function sendToStore(){
+  if(!batch.length){toast('Add a product first',true);return;}
+  if(!WORKER_URL){toast('WORKER_URL not set yet — see SETUP.md',true);return;}
+  const btn=document.getElementById('sendBtn');const old=btn.textContent;btn.disabled=true;btn.textContent='Working… optimizing & creating drafts';
+  document.getElementById('results').innerHTML='';
+  try{
+    const res=await fetch(WORKER_URL,{method:'POST',headers:{'Content-Type':'application/json',...(FORM_SECRET?{'x-form-secret':FORM_SECRET}:{})},body:JSON.stringify({products:batch})});
+    const j=await res.json();
+    if(!res.ok||j.error){throw new Error(j.error||('HTTP '+res.status));}
+    renderResults(j.results||[]);
+    const okCount=(j.results||[]).filter(r=>r.ok).length;
+    toast(okCount+' draft(s) created ✓');
+    if(okCount===batch.length){batch=[];renderBatch();}
+  }catch(e){toast('Error: '+e.message,true);document.getElementById('results').innerHTML='<p style="color:#c0392b;font-size:13px">'+e.message+'</p>';}
+  finally{btn.disabled=false;btn.textContent=old;}
+}
+function renderResults(results){
+  const el=document.getElementById('results');
+  el.innerHTML='<label style="margin-top:16px">Results</label>'+results.map(r=>r.ok
+    ?`<div class="batch-item"><span>✅ <b>${r.title}</b> — created as Draft${r.collections&&r.collections.length?' · '+r.collections.length+' collection(s)':''}${r.optimized?' · copy optimized':''}</span><a href="${r.adminUrl}" target="_blank" style="color:#2e75b6;font-weight:600;text-decoration:none">Open in Shopify ↗</a></div>`
+    :`<div class="batch-item"><span>⚠️ <b>${r.title||'(untitled)'}</b> — ${r.error}</span></div>`
+  ).join('');
 }
 let toastT;function toast(msg,warn){const t=document.getElementById('toast');t.textContent=msg;t.style.background=warn?'#c0392b':'#2e7d32';t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200);}
 addVariant();buildPreview();
