@@ -17,6 +17,7 @@
   label{display:block;font-size:12px;font-weight:600;color:#33415c;margin:10px 0 4px}
   .req::after{content:" *";color:#c0392b}
   input[type=text],input[type=number],textarea,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-size:14px;font-family:inherit}
+  input[type=file]{width:100%;font-size:13px;padding:8px 0}
   textarea{min-height:70px;resize:vertical}
   .row{display:flex;gap:14px;flex-wrap:wrap}
   .row>div{flex:1;min-width:150px}
@@ -48,7 +49,7 @@
 <body>
 <header>
   <h1>Safety Decals — New Product Form</h1>
-  <p>Fill in a product, click “Add to batch,” then “Copy for Claude” and paste it to me — I’ll create them in your store.</p>
+  <p>Fill in a product, click “Add product to batch,” then “Create in Shopify.” Drafts are created for you to review.</p>
 </header>
 <div class="wrap">
 
@@ -95,7 +96,10 @@
     <input type="text" id="seoTitle">
     <label>SEO Description</label>
     <textarea id="seoDescription"></textarea>
-    <label>Image URLs <span class="hint">(public https links, one per line — or leave blank and send me the files)</span></label>
+    <label>Upload image(s) <span class="hint">(from your computer — jpg or png)</span></label>
+    <input type="file" id="imageFiles" accept="image/*" multiple onchange="handleFiles(this.files)">
+    <div id="imgList" class="hint" style="margin-top:6px"></div>
+    <label style="margin-top:12px">…or paste image URLs <span class="hint">(public https links, one per line — optional)</span></label>
     <textarea id="images" placeholder="https://…/photo1.jpg"></textarea>
   </div>
 
@@ -114,7 +118,7 @@
       <button class="btn-ghost" onclick="download('csv')">Download Shopify CSV</button>
       <button class="btn-ghost" onclick="clearBatch()">Clear batch</button>
     </div>
-    <p class="hint" style="margin-top:6px">“Create in Shopify” rewrites your copy/SEO with Claude and adds each product as a <b>Draft</b> for you to approve. (Needs the backend set up — see SETUP.md.)</p>
+    <p class="hint" style="margin-top:6px">“Create in Shopify” rewrites your copy/SEO with Claude and adds each product as a <b>Draft</b> for you to approve.</p>
     <div id="results"></div>
     <label style="margin-top:16px">Preview (this is what gets sent)</label>
     <pre id="preview">[]</pre>
@@ -124,18 +128,16 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const COLLECTIONS=["Decals","Hazard/Warning Decals","Waste Decals","Fuel Decals","Truck and Equipment Decals","Health / Infection Prevention Decals","Service Decals","Traffic Signs","No Parking Signs","Parking Lot Private Property Signs","Permissive Parking Signs","Regulatory Signs","Warning Signs","Handicap-Disabled Parking Signs","Pedestrian Signs","Speed Limit Signs","Civic Signs","Yard Signs","FDC Signage","Emergency Roll Up Traffic Signs","Fire & Safety Products","First Responders","Aviation","Rail Road","Construction","Sign Sheeting","DOT Tape","Chevron","Reflective Technology","Hardware/Substrates/Cleaners","Safety","Custom Apparel and Merchandise","Promotional Goods"];
-const MATERIALS=["ORAFOL® 3641 Vinyl - No Laminate","ORAFOL® 3651 Vinyl - No Laminate","ORAFOL® 3651 Vinyl - ORAGUARD® Laminate","ORALITE® 5400 Reflective Vinyl - No Laminate","ORALITE® 5900 High Intensity Prismatic Grade - Type IV - ORAGUARD® 5061 Clear Laminate","ORALITE® 6700 Engineer Grade Prismatic - Type I - ORAGUARD® 5061 Clear Laminate","Reflective Aluminum","High-Intensity Aluminum","Non-Reflective Aluminum"];
-let batch=[];
-
-// ===== Backend (fill these in after you deploy the Cloudflare Worker — see SETUP.md) =====
 const WORKER_URL = "https://safety-decals-intake.n-tykoski.workers.dev/";
 const FORM_SECRET = "";  // only if you set SHARED_SECRET on the Worker
 
-// build collection checkboxes
+const COLLECTIONS=["Decals","Hazard/Warning Decals","Waste Decals","Fuel Decals","Truck and Equipment Decals","Health / Infection Prevention Decals","Service Decals","Traffic Signs","No Parking Signs","Parking Lot Private Property Signs","Permissive Parking Signs","Regulatory Signs","Warning Signs","Handicap-Disabled Parking Signs","Pedestrian Signs","Speed Limit Signs","Civic Signs","Yard Signs","FDC Signage","Emergency Roll Up Traffic Signs","Fire & Safety Products","First Responders","Aviation","Rail Road","Construction","Sign Sheeting","DOT Tape","Chevron","Reflective Technology","Hardware/Substrates/Cleaners","Safety","Custom Apparel and Merchandise","Promotional Goods"];
+const MATERIALS=["ORAFOL® 3641 Vinyl - No Laminate","ORAFOL® 3651 Vinyl - No Laminate","ORAFOL® 3651 Vinyl - ORAGUARD® Laminate","ORALITE® 5400 Reflective Vinyl - No Laminate","ORALITE® 5900 High Intensity Prismatic Grade - Type IV - ORAGUARD® 5061 Clear Laminate","ORALITE® 6700 Engineer Grade Prismatic - Type I - ORAGUARD® 5061 Clear Laminate","Reflective Aluminum","High-Intensity Aluminum","Non-Reflective Aluminum"];
+let batch=[];
+let pendingImages=[];
+
 const cwrap=document.getElementById('collections');
 COLLECTIONS.forEach(c=>{const l=document.createElement('label');l.innerHTML=`<input type="checkbox" value="${c.replace(/"/g,'&quot;')}"> ${c}`;cwrap.appendChild(l);});
-// material datalist for opt1 value convenience
 const ml=document.getElementById('matList');MATERIALS.forEach(m=>{const o=document.createElement('option');o.value=m;ml.appendChild(o);});
 
 function optNames(){return [document.getElementById('opt1').value.trim(),document.getElementById('opt2').value.trim(),document.getElementById('opt3').value.trim()].filter(Boolean);}
@@ -158,7 +160,6 @@ function addVariant(values){
   div.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',buildPreview));
 }
 function renderVariants(){
-  // rebuild variant rows preserving prices
   const existing=collectVariants();
   document.getElementById('variants').innerHTML='';
   if(existing.length===0){addVariant();}
@@ -183,6 +184,7 @@ function currentProduct(){
     const ov={}; names.forEach((n,i)=>{if(v.opts[i])ov[n]=v.opts[i];});
     return {price:v.price,compareAtPrice:v.cmp||null,sku:v.sku||null,track:v.track==='Yes',qty:v.qty?Number(v.qty):null,optionValues:ov};
   });
+  const typedUrls=document.getElementById('images').value.split(/[\n,]/).map(s=>s.trim()).filter(Boolean);
   return {
     title,
     handle:title?handleOf(title):"",
@@ -194,12 +196,17 @@ function currentProduct(){
     collections:[...document.querySelectorAll('#collections input:checked')].map(c=>c.value),
     seoTitle:document.getElementById('seoTitle').value.trim(),
     seoDescription:document.getElementById('seoDescription').value.trim(),
-    images:document.getElementById('images').value.split(/[\n,]/).map(s=>s.trim()).filter(Boolean),
+    images:[...pendingImages.map(im=>im.dataUrl),...typedUrls],
     options:names,
     variants
   };
 }
-function buildPreview(){document.getElementById('preview').textContent=JSON.stringify(batch,null,2);document.getElementById('count').textContent=batch.length;}
+function sanitizeForView(b){
+  const safe=JSON.parse(JSON.stringify(b));
+  safe.forEach(p=>{if(p.images)p.images=p.images.map(u=>typeof u==='string'&&u.startsWith('data:')?'[uploaded image]':u);});
+  return safe;
+}
+function buildPreview(){document.getElementById('preview').textContent=JSON.stringify(sanitizeForView(batch),null,2);document.getElementById('count').textContent=batch.length;}
 function addProduct(){
   const p=currentProduct();
   if(!p.title){toast('Add a title first',true);return;}
@@ -211,7 +218,8 @@ function renderBatch(){
   if(!batch.length){b.innerHTML='<p class="empty">No products added yet.</p>';buildPreview();return;}
   b.innerHTML='';
   batch.forEach((p,i)=>{const d=document.createElement('div');d.className='batch-item';
-    d.innerHTML=`<span><b>${p.title}</b> — ${p.variants.length} variant(s), ${p.status.toLowerCase()}${p.collections.length?' · '+p.collections.length+' collection(s)':''}</span><button class="b-x" onclick="batch.splice(${i},1);renderBatch()">✕</button>`;
+    const imgCount=(p.images||[]).length;
+    d.innerHTML=`<span><b>${p.title}</b> — ${p.variants.length} variant(s), ${p.status.toLowerCase()}${p.collections.length?' · '+p.collections.length+' collection(s)':''}${imgCount?' · '+imgCount+' image(s)':''}</span><button class="b-x" onclick="batch.splice(${i},1);renderBatch()">✕</button>`;
     b.appendChild(d);});
   buildPreview();
 }
@@ -220,12 +228,25 @@ function resetForm(){
   document.getElementById('vendor').value='Safety Decals';
   document.querySelector('input[name=status][value=DRAFT]').checked=true;
   document.querySelectorAll('#collections input:checked').forEach(c=>c.checked=false);
+  pendingImages=[];document.getElementById('imageFiles').value='';renderImgList();
   document.getElementById('variants').innerHTML='';addVariant();
 }
 function clearBatch(){if(confirm('Clear all added products?')){batch=[];renderBatch();}}
+function handleFiles(files){
+  for(const f of files){
+    if(!f.type.startsWith('image/'))continue;
+    const reader=new FileReader();
+    reader.onload=e=>{pendingImages.push({name:f.name,dataUrl:e.target.result});renderImgList();};
+    reader.readAsDataURL(f);
+  }
+}
+function renderImgList(){
+  const el=document.getElementById('imgList');
+  el.innerHTML=pendingImages.length?('Attached: '+pendingImages.map((im,i)=>`${im.name} <a href="#" onclick="pendingImages.splice(${i},1);renderImgList();return false;" style="color:#c0392b;text-decoration:none">✕</a>`).join(' · ')):'';
+}
 function copyForClaude(){
   if(!batch.length){toast('Add a product first',true);return;}
-  const txt='Please create these products in my Shopify store:\n\n'+JSON.stringify(batch,null,2);
+  const txt='Please create these products in my Shopify store:\n\n'+JSON.stringify(sanitizeForView(batch),null,2);
   navigator.clipboard.writeText(txt).then(()=>toast('Copied ✓ — paste it to Claude')).catch(()=>{
     const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast('Copied ✓ — paste it to Claude');});
 }
@@ -233,20 +254,21 @@ function csvEscape(s){s=(s==null?'':String(s));return /[",\n]/.test(s)?'"'+s.rep
 function download(kind){
   if(!batch.length){toast('Add a product first',true);return;}
   let blob,name;
-  if(kind==='json'){blob=new Blob([JSON.stringify(batch,null,2)],{type:'application/json'});name='new-products.json';}
+  if(kind==='json'){blob=new Blob([JSON.stringify(sanitizeForView(batch),null,2)],{type:'application/json'});name='new-products.json';}
   else{
     const cols=["Handle","Title","Body (HTML)","Vendor","Type","Tags","Published","Option1 Name","Option1 Value","Option2 Name","Option2 Value","Option3 Name","Option3 Value","Variant SKU","Variant Inventory Qty","Variant Inventory Tracker","Variant Price","Variant Compare At Price","Image Src","SEO Title","SEO Description","Status"];
     const lines=[cols.join(',')];
-    batch.forEach(p=>{
+    sanitizeForView(batch).forEach(p=>{
       const body=p.description?p.description.split(/\n/).filter(Boolean).map(l=>'<p>'+l+'</p>').join(''):'';
       p.variants.forEach((v,vi)=>{
         const first=vi===0;
+        const img=(p.images||[]).find(u=>typeof u==='string'&&u.startsWith('http'))||'';
         const row=[p.handle,first?p.title:'',first?body:'',first?p.vendor:'',first?p.productType:'',first?p.tags.join(', '):'',first?(p.status==='ACTIVE'?'TRUE':'FALSE'):'',
           first?(p.options[0]||''):'',v.optionValues[p.options[0]]||(p.options.length?'':'Default Title'),
           first?(p.options[1]||''):'',v.optionValues[p.options[1]]||'',
           first?(p.options[2]||''):'',v.optionValues[p.options[2]]||'',
           v.sku||'',v.track?(v.qty||0):'',v.track?'shopify':'',v.price,v.compareAtPrice||'',
-          first?(p.images[0]||''):'',first?(p.seoTitle||''):'',first?(p.seoDescription||''):'',first?p.status.charAt(0)+p.status.slice(1).toLowerCase():''];
+          first?img:'',first?(p.seoTitle||''):'',first?(p.seoDescription||''):'',first?p.status.charAt(0)+p.status.slice(1).toLowerCase():''];
         lines.push(row.map(csvEscape).join(','));
       });
     });
