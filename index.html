@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Safety Decals — New Product Form</title>
+<style>
+  :root{--navy:#1f3864;--blue:#2e75b6;--line:#d9dee8;--bg:#f4f6fa;--ok:#2e7d32;--muted:#667085;}
+  *{box-sizing:border-box}
+  body{font-family:-apple-system,Segoe UI,Arial,sans-serif;margin:0;background:var(--bg);color:#1a2233;line-height:1.45}
+  header{background:var(--navy);color:#fff;padding:18px 22px}
+  header h1{margin:0;font-size:20px}
+  header p{margin:4px 0 0;font-size:13px;color:#c7d2e6}
+  .wrap{max-width:960px;margin:0 auto;padding:22px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:18px}
+  h2{font-size:15px;color:var(--navy);margin:0 0 12px;border-bottom:2px solid var(--line);padding-bottom:6px}
+  label{display:block;font-size:12px;font-weight:600;color:#33415c;margin:10px 0 4px}
+  .req::after{content:" *";color:#c0392b}
+  input[type=text],input[type=number],textarea,select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;font-size:14px;font-family:inherit}
+  textarea{min-height:70px;resize:vertical}
+  .row{display:flex;gap:14px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:150px}
+  .hint{font-size:11px;color:var(--muted);margin-top:3px}
+  .collections{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px 14px;max-height:190px;overflow:auto;border:1px solid var(--line);border-radius:7px;padding:10px}
+  .collections label{display:flex;align-items:center;gap:7px;font-weight:400;margin:0;font-size:13px;cursor:pointer}
+  .collections input{width:auto}
+  .variant{border:1px solid var(--line);border-radius:8px;padding:12px;margin-bottom:10px;background:#fafbfe;position:relative}
+  .variant .row>div{min-width:120px}
+  .vhead{font-size:12px;font-weight:700;color:var(--blue);margin-bottom:6px}
+  button{cursor:pointer;border:none;border-radius:7px;font-size:14px;font-weight:600;padding:9px 16px}
+  .btn{background:var(--blue);color:#fff}
+  .btn-navy{background:var(--navy);color:#fff}
+  .btn-ghost{background:#fff;border:1px solid var(--line);color:#33415c;font-weight:500}
+  .btn-sm{padding:5px 10px;font-size:12px}
+  .btn-x{position:absolute;top:8px;right:8px;background:#fff;border:1px solid var(--line);color:#c0392b;border-radius:6px;padding:2px 8px;font-size:12px}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .radio{display:flex;gap:18px;margin-top:4px}
+  .radio label{font-weight:400;display:flex;align-items:center;gap:6px;margin:0}
+  .batch-item{display:flex;justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:7px;padding:9px 12px;margin-bottom:7px;font-size:14px;background:#fff}
+  .batch-item .b-x{background:none;border:none;color:#c0392b;font-size:16px;padding:0 6px}
+  pre{background:#0e1726;color:#e6edf3;border-radius:8px;padding:14px;overflow:auto;font-size:12px;max-height:280px;white-space:pre-wrap;word-break:break-word}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ok);color:#fff;padding:10px 18px;border-radius:8px;font-size:14px;opacity:0;transition:.25s;pointer-events:none}
+  .toast.show{opacity:1}
+  .empty{color:var(--muted);font-size:13px;font-style:italic}
+  datalist{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Safety Decals — New Product Form</h1>
+  <p>Fill in a product, click “Add to batch,” then “Copy for Claude” and paste it to me — I’ll create them in your store.</p>
+</header>
+<div class="wrap">
+
+  <div class="card">
+    <h2>Product details</h2>
+    <label class="req">Title</label>
+    <input type="text" id="title" placeholder="e.g. No Parking Fire Lane Sign">
+    <label>Description</label>
+    <textarea id="description" placeholder="One point per line — e.g.&#10;Reflective for day/night visibility&#10;Pre-drilled holes for easy mounting&#10;Rust-free aluminum"></textarea>
+    <div class="row">
+      <div><label>Product Type</label><input type="text" id="productType" list="typeList" placeholder="Traffic Sign"><datalist id="typeList"><option>Safety Decal</option><option>Traffic Sign</option><option>DOT Tape</option><option>Reflective Sheeting</option><option>Apparel</option><option>Hardware</option></datalist></div>
+      <div><label>Vendor</label><input type="text" id="vendor" value="Safety Decals"></div>
+    </div>
+    <label>Tags <span class="hint">(comma-separated)</span></label>
+    <input type="text" id="tags" placeholder="no parking, fire, sign, traffic">
+    <label>Status</label>
+    <div class="radio">
+      <label><input type="radio" name="status" value="DRAFT" checked> Draft (review first)</label>
+      <label><input type="radio" name="status" value="ACTIVE"> Active (go live now)</label>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Collections <span class="hint" style="font-weight:400">(tick all that apply)</span></h2>
+    <div class="collections" id="collections"></div>
+  </div>
+
+  <div class="card">
+    <h2>Options &amp; variants</h2>
+    <p class="hint">Name up to 3 options (e.g. Material, Size). Leave all blank for a single-version product. Then add a variant row for each combination.</p>
+    <div class="row">
+      <div><label>Option 1 name</label><input type="text" id="opt1" list="matList" placeholder="Material" oninput="renderVariants()"></div>
+      <div><label>Option 2 name</label><input type="text" id="opt2" placeholder="Size" oninput="renderVariants()"></div>
+      <div><label>Option 3 name</label><input type="text" id="opt3" placeholder="Color" oninput="renderVariants()"></div>
+    </div>
+    <datalist id="matList"><option>Material</option></datalist>
+    <div id="variants" style="margin-top:14px"></div>
+    <button class="btn-ghost btn-sm" onclick="addVariant()">+ Add variant</button>
+  </div>
+
+  <div class="card">
+    <h2>SEO &amp; images <span class="hint" style="font-weight:400">(optional)</span></h2>
+    <label>SEO Title <span class="hint">(blank = “Title | Safety Decals”)</span></label>
+    <input type="text" id="seoTitle">
+    <label>SEO Description</label>
+    <textarea id="seoDescription"></textarea>
+    <label>Image URLs <span class="hint">(public https links, one per line — or leave blank and send me the files)</span></label>
+    <textarea id="images" placeholder="https://…/photo1.jpg"></textarea>
+  </div>
+
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px">
+    <button class="btn-navy" onclick="addProduct()">Add product to batch</button>
+    <button class="btn-ghost" onclick="resetForm()">Clear form</button>
+  </div>
+
+  <div class="card">
+    <h2>Batch — <span id="count">0</span> product(s) ready</h2>
+    <div id="batch"><p class="empty">No products added yet.</p></div>
+    <div class="actions">
+      <button class="btn" onclick="copyForClaude()">📋 Copy for Claude</button>
+      <button class="btn-ghost" onclick="download('json')">Download JSON</button>
+      <button class="btn-ghost" onclick="download('csv')">Download Shopify CSV</button>
+      <button class="btn-ghost" onclick="clearBatch()">Clear batch</button>
+    </div>
+    <label style="margin-top:16px">Preview (this is what I receive)</label>
+    <pre id="preview">[]</pre>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const COLLECTIONS=["Decals","Hazard/Warning Decals","Waste Decals","Fuel Decals","Truck and Equipment Decals","Health / Infection Prevention Decals","Service Decals","Traffic Signs","No Parking Signs","Parking Lot Private Property Signs","Permissive Parking Signs","Regulatory Signs","Warning Signs","Handicap-Disabled Parking Signs","Pedestrian Signs","Speed Limit Signs","Civic Signs","Yard Signs","FDC Signage","Emergency Roll Up Traffic Signs","Fire & Safety Products","First Responders","Aviation","Rail Road","Construction","Sign Sheeting","DOT Tape","Chevron","Reflective Technology","Hardware/Substrates/Cleaners","Safety","Custom Apparel and Merchandise","Promotional Goods"];
+const MATERIALS=["ORAFOL® 3641 Vinyl - No Laminate","ORAFOL® 3651 Vinyl - No Laminate","ORAFOL® 3651 Vinyl - ORAGUARD® Laminate","ORALITE® 5400 Reflective Vinyl - No Laminate","ORALITE® 5900 High Intensity Prismatic Grade - Type IV - ORAGUARD® 5061 Clear Laminate","ORALITE® 6700 Engineer Grade Prismatic - Type I - ORAGUARD® 5061 Clear Laminate","Reflective Aluminum","High-Intensity Aluminum","Non-Reflective Aluminum"];
+let batch=[];
+
+// build collection checkboxes
+const cwrap=document.getElementById('collections');
+COLLECTIONS.forEach(c=>{const l=document.createElement('label');l.innerHTML=`<input type="checkbox" value="${c.replace(/"/g,'&quot;')}"> ${c}`;cwrap.appendChild(l);});
+// material datalist for opt1 value convenience
+const ml=document.getElementById('matList');MATERIALS.forEach(m=>{const o=document.createElement('option');o.value=m;ml.appendChild(o);});
+
+function optNames(){return [document.getElementById('opt1').value.trim(),document.getElementById('opt2').value.trim(),document.getElementById('opt3').value.trim()].filter(Boolean);}
+
+function addVariant(values){
+  const names=optNames();
+  const div=document.createElement('div');div.className='variant';
+  let cells='';
+  names.forEach((n,i)=>{const dl=i===0?'list="matList"':'';cells+=`<div><label>${n}</label><input type="text" class="v-opt" data-i="${i}" ${dl} value="${(values&&values.opts[i])||''}"></div>`;});
+  cells+=`<div><label class="req">Price</label><input type="number" step="0.01" class="v-price" value="${(values&&values.price)||''}" placeholder="34.99"></div>`;
+  cells+=`<div><label>Compare-at</label><input type="number" step="0.01" class="v-cmp" value="${(values&&values.cmp)||''}"></div>`;
+  cells+=`<div><label>SKU</label><input type="text" class="v-sku" value="${(values&&values.sku)||''}"></div>`;
+  div.innerHTML=`<button class="btn-x" onclick="this.parentNode.remove();buildPreview()">remove</button>
+    <div class="vhead">Variant</div><div class="row">${cells}</div>
+    <div class="row" style="margin-top:6px">
+      <div style="max-width:180px"><label>Track inventory?</label><select class="v-track"><option value="No">No (made to order)</option><option value="Yes">Yes</option></select></div>
+      <div style="max-width:150px"><label>Qty (if tracked)</label><input type="number" class="v-qty" value="${(values&&values.qty)||''}"></div>
+    </div>`;
+  document.getElementById('variants').appendChild(div);
+  div.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',buildPreview));
+}
+function renderVariants(){
+  // rebuild variant rows preserving prices
+  const existing=collectVariants();
+  document.getElementById('variants').innerHTML='';
+  if(existing.length===0){addVariant();}
+  else existing.forEach(v=>addVariant(v));
+  buildPreview();
+}
+function collectVariants(){
+  return [...document.querySelectorAll('.variant')].map(v=>({
+    opts:[...v.querySelectorAll('.v-opt')].map(e=>e.value.trim()),
+    price:v.querySelector('.v-price').value.trim(),
+    cmp:v.querySelector('.v-cmp').value.trim(),
+    sku:v.querySelector('.v-sku').value.trim(),
+    track:v.querySelector('.v-track').value,
+    qty:v.querySelector('.v-qty').value.trim()
+  }));
+}
+function handleOf(t){return t.toLowerCase().replace(/[®™©]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,120);}
+function currentProduct(){
+  const title=document.getElementById('title').value.trim();
+  const names=optNames();
+  const variants=collectVariants().map(v=>{
+    const ov={}; names.forEach((n,i)=>{if(v.opts[i])ov[n]=v.opts[i];});
+    return {price:v.price,compareAtPrice:v.cmp||null,sku:v.sku||null,track:v.track==='Yes',qty:v.qty?Number(v.qty):null,optionValues:ov};
+  });
+  return {
+    title,
+    handle:title?handleOf(title):"",
+    description:document.getElementById('description').value.trim(),
+    productType:document.getElementById('productType').value.trim(),
+    vendor:document.getElementById('vendor').value.trim()||"Safety Decals",
+    tags:document.getElementById('tags').value.split(',').map(s=>s.trim()).filter(Boolean),
+    status:document.querySelector('input[name=status]:checked').value,
+    collections:[...document.querySelectorAll('#collections input:checked')].map(c=>c.value),
+    seoTitle:document.getElementById('seoTitle').value.trim(),
+    seoDescription:document.getElementById('seoDescription').value.trim(),
+    images:document.getElementById('images').value.split(/[\n,]/).map(s=>s.trim()).filter(Boolean),
+    options:names,
+    variants
+  };
+}
+function buildPreview(){document.getElementById('preview').textContent=JSON.stringify(batch,null,2);document.getElementById('count').textContent=batch.length;}
+function addProduct(){
+  const p=currentProduct();
+  if(!p.title){toast('Add a title first',true);return;}
+  if(!p.variants.length||!p.variants.some(v=>v.price)){toast('Add at least one variant with a price',true);return;}
+  batch.push(p);renderBatch();resetForm();toast('Added ✓');
+}
+function renderBatch(){
+  const b=document.getElementById('batch');
+  if(!batch.length){b.innerHTML='<p class="empty">No products added yet.</p>';buildPreview();return;}
+  b.innerHTML='';
+  batch.forEach((p,i)=>{const d=document.createElement('div');d.className='batch-item';
+    d.innerHTML=`<span><b>${p.title}</b> — ${p.variants.length} variant(s), ${p.status.toLowerCase()}${p.collections.length?' · '+p.collections.length+' collection(s)':''}</span><button class="b-x" onclick="batch.splice(${i},1);renderBatch()">✕</button>`;
+    b.appendChild(d);});
+  buildPreview();
+}
+function resetForm(){
+  ['title','description','productType','tags','seoTitle','seoDescription','images','opt1','opt2','opt3'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('vendor').value='Safety Decals';
+  document.querySelector('input[name=status][value=DRAFT]').checked=true;
+  document.querySelectorAll('#collections input:checked').forEach(c=>c.checked=false);
+  document.getElementById('variants').innerHTML='';addVariant();
+}
+function clearBatch(){if(confirm('Clear all added products?')){batch=[];renderBatch();}}
+function copyForClaude(){
+  if(!batch.length){toast('Add a product first',true);return;}
+  const txt='Please create these products in my Shopify store:\n\n'+JSON.stringify(batch,null,2);
+  navigator.clipboard.writeText(txt).then(()=>toast('Copied ✓ — paste it to Claude')).catch(()=>{
+    const ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove();toast('Copied ✓ — paste it to Claude');});
+}
+function csvEscape(s){s=(s==null?'':String(s));return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;}
+function download(kind){
+  if(!batch.length){toast('Add a product first',true);return;}
+  let blob,name;
+  if(kind==='json'){blob=new Blob([JSON.stringify(batch,null,2)],{type:'application/json'});name='new-products.json';}
+  else{
+    const cols=["Handle","Title","Body (HTML)","Vendor","Type","Tags","Published","Option1 Name","Option1 Value","Option2 Name","Option2 Value","Option3 Name","Option3 Value","Variant SKU","Variant Inventory Qty","Variant Inventory Tracker","Variant Price","Variant Compare At Price","Image Src","SEO Title","SEO Description","Status"];
+    const lines=[cols.join(',')];
+    batch.forEach(p=>{
+      const body=p.description?p.description.split(/\n/).filter(Boolean).map(l=>'<p>'+l+'</p>').join(''):'';
+      p.variants.forEach((v,vi)=>{
+        const first=vi===0;
+        const row=[p.handle,first?p.title:'',first?body:'',first?p.vendor:'',first?p.productType:'',first?p.tags.join(', '):'',first?(p.status==='ACTIVE'?'TRUE':'FALSE'):'',
+          first?(p.options[0]||''):'',v.optionValues[p.options[0]]||(p.options.length?'':'Default Title'),
+          first?(p.options[1]||''):'',v.optionValues[p.options[1]]||'',
+          first?(p.options[2]||''):'',v.optionValues[p.options[2]]||'',
+          v.sku||'',v.track?(v.qty||0):'',v.track?'shopify':'',v.price,v.compareAtPrice||'',
+          first?(p.images[0]||''):'',first?(p.seoTitle||''):'',first?(p.seoDescription||''):'',first?p.status.charAt(0)+p.status.slice(1).toLowerCase():''];
+        lines.push(row.map(csvEscape).join(','));
+      });
+    });
+    blob=new Blob([lines.join('\n')],{type:'text/csv'});name='new-products-shopify-import.csv';
+  }
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();
+}
+let toastT;function toast(msg,warn){const t=document.getElementById('toast');t.textContent=msg;t.style.background=warn?'#c0392b':'#2e7d32';t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2200);}
+addVariant();buildPreview();
+</script>
+</body>
+</html>
